@@ -1,0 +1,13 @@
+{
+  "tools": [
+    {
+      "id": "io.github.pzmuv1517.Spinel",
+      "name": "Spinel",
+      "summary": "Tiling that works with native Spaces, fullscreen apps and every display.",
+      "repository": "PzmuV1517/Spinel",
+      "symbol": "rectangle.split.2x1",
+      "minimumVersion": "0.4.0",
+      "legacyNames": ["TileMyMac"]
+    }
+  ]
+}
