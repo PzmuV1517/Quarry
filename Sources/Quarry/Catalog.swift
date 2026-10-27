@@ -14,6 +14,13 @@ struct CatalogEntry: Codable, Identifiable, Hashable {
     let minimumVersion: String?
     /// Names the app was released under before.
     let legacyNames: [String]?
+    /// A companion Android app, released as `<name>-<version>.apk`, which Quarry installs over adb.
+    var android: Android? = nil
+
+    struct Android: Codable, Hashable {
+        /// The Android package name.
+        let package: String
+    }
 }
 
 enum Catalog {

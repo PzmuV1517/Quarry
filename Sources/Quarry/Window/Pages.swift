@@ -114,6 +114,11 @@ private struct InstalledRow: View {
             .buttonStyle(.plain)
             .padding(.leading, 58)
 
+            if let android = tool.entry.android {
+                PhonePanel(library: library, tool: tool, package: android.package)
+                    .padding(.leading, 58)
+            }
+
             if showsVersions {
                 VStack(alignment: .leading, spacing: 12) {
                     if tool.releases.isEmpty {
@@ -139,6 +144,96 @@ private struct InstalledRow: View {
 
     private var failure: String? {
         if case .failed(let message) = tool.phase { message } else { nil }
+    }
+}
+
+/// A tool's Android app on the phones plugged in over USB: which version each has, and
+/// installing the latest release with adb.
+private struct PhonePanel: View {
+    let library: ToolLibrary
+    let tool: Tool
+    let package: String
+
+    private var phones: AndroidPhones { library.phones }
+    /// The newest release with an Android app.
+    private var latest: Release? { tool.releases.first { $0.apk != nil && $0.version != nil } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "candybarphone")
+                Text("ANDROID APP").font(.system(size: 10, weight: .bold)).tracking(1.4)
+                InfoButton(text: "Plug your phone in over USB with USB debugging on (Settings → Developer options). Quarry installs the app with adb.")
+                Spacer()
+                Text(latest.map { "Latest \($0.tag)" } ?? "No release yet").font(.caption).foregroundStyle(Brand.tertiary)
+            }
+            .foregroundStyle(Brand.tertiary)
+
+            if phones.adb == nil {
+                Text("Needs adb. Install it with `brew install android-platform-tools`.")
+                    .font(.callout)
+                    .foregroundStyle(Brand.secondary)
+                    .textSelection(.enabled)
+            } else if phones.phones.isEmpty {
+                Text("No phone plugged in.").font(.callout).foregroundStyle(Brand.secondary)
+            }
+            ForEach(phones.phones) { phone in
+                if phone != phones.phones.first { Divider() }
+                PhoneRow(phones: phones, phone: phone, package: package, latest: latest)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white.opacity(0.03)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Brand.hairline))
+        .task {
+            // Notices phones being plugged in while the Library is open.
+            while !Task.isCancelled {
+                await phones.refresh(packages: [package])
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
+    }
+}
+
+private struct PhoneRow: View {
+    let phones: AndroidPhones
+    let phone: AndroidPhones.Phone
+    let package: String
+    let latest: Release?
+
+    var body: some View {
+        let installed = phone.versions[package]
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(phone.model).font(.system(size: 13, weight: .semibold))
+                    Text(status(installed)).font(.caption).foregroundStyle(Brand.tertiary)
+                }
+                Spacer()
+                if let activity = phones.activity[phone.id] {
+                    ProgressView().controlSize(.small)
+                    Text(activity).font(.caption).foregroundStyle(Brand.secondary)
+                } else if phone.state == .ready {
+                    if let latest, let version = latest.version, installed.map({ $0 < version }) ?? true {
+                        Button(installed == nil ? "Install" : "Update") {
+                            Task { await phones.install(latest, package: package, on: phone) }
+                        }
+                        .glassButton(prominent: true)
+                    }
+                }
+            }
+            if let problem = phones.problems[phone.id] {
+                Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.caption)
+            }
+        }
+    }
+
+    private func status(_ installed: Version?) -> String {
+        switch phone.state {
+        case .unauthorized: return "Allow USB debugging on the phone"
+        case .offline: return "Not responding"
+        case .ready: return installed.map { "Version \($0) installed" } ?? "Not installed"
+        }
     }
 }
 

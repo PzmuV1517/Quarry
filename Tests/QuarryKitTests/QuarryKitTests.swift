@@ -22,7 +22,8 @@ final class ReleasesTests: XCTestCase {
            "assets": [{"name": "TileMyMac-0.1.0.zip", "browser_download_url": "https://example.com/t.zip"}]},
           {"id": 2, "tag_name": "v0.4.0", "body": null, "published_at": "2026-10-27T10:00:00Z",
            "html_url": "https://github.com/a/b/releases/2", "draft": false,
-           "assets": [{"name": "Spinel-0.4.0.zip", "browser_download_url": "https://example.com/s.zip"}]},
+           "assets": [{"name": "Spinel-0.4.0.zip", "browser_download_url": "https://example.com/s.zip"},
+                      {"name": "Spinel-0.4.0.apk", "browser_download_url": "https://example.com/s.apk"}]},
           {"id": 3, "tag_name": "v0.5.0", "body": "", "published_at": null,
            "html_url": "https://github.com/a/b/releases/3", "draft": true, "assets": []}
         ]
@@ -30,6 +31,7 @@ final class ReleasesTests: XCTestCase {
         let releases = try Releases.parse(Data(json.utf8), appName: "Spinel", legacyNames: ["TileMyMac"])
         XCTAssertEqual(releases.map(\.tag), ["v0.4.0", "v0.1.0"])  // newest first, drafts dropped
         XCTAssertEqual(releases[0].zip?.absoluteString, "https://example.com/s.zip")
+        XCTAssertEqual(releases[0].apk?.absoluteString, "https://example.com/s.apk")
         XCTAssertFalse(releases[0].isLegacy)
         XCTAssertNil(releases[1].zip)
         XCTAssertTrue(releases[1].isLegacy)

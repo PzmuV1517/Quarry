@@ -10,17 +10,20 @@ public struct Release: Identifiable, Equatable, Sendable {
     public let date: Date?
     /// The zipped app, if the release has one.
     public let zip: URL?
+    /// The tool's Android app (`<appName>…apk`), if it has one.
+    public let apk: URL?
     public let page: URL
     /// Published under an older name: listed for history, never installable.
     public let isLegacy: Bool
 
-    public init(id: Int, tag: String, version: Version?, notes: String, date: Date?, zip: URL?, page: URL, isLegacy: Bool) {
+    public init(id: Int, tag: String, version: Version?, notes: String, date: Date?, zip: URL?, apk: URL? = nil, page: URL, isLegacy: Bool) {
         self.id = id
         self.tag = tag
         self.version = version
         self.notes = notes
         self.date = date
         self.zip = zip
+        self.apk = apk
         self.page = page
         self.isLegacy = isLegacy
     }
@@ -70,6 +73,7 @@ public enum Releases {
                     notes: item.body ?? "",
                     date: item.published_at,
                     zip: zip?.browser_download_url,
+                    apk: item.assets.first { $0.name.hasPrefix(appName) && $0.name.hasSuffix(".apk") }?.browser_download_url,
                     page: item.html_url,
                     isLegacy: zip == nil && item.assets.contains { asset in legacyNames.contains { asset.name.hasPrefix($0) } }
                 )

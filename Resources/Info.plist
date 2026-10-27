@@ -33,6 +33,8 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Tools in Quarry use Bluetooth. Magnetite uses it to lock your Mac when your phone walks away.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

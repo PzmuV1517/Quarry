@@ -125,6 +125,8 @@ final class ToolLibrary {
     private(set) var configError: String?
 
     @ObservationIgnored let host = HostBridge()
+    /// Phones plugged in over USB, for tools with an Android app.
+    let phones = AndroidPhones()
     /// Something shown in the menu bar changed.
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var accessibilityTimer: Timer?

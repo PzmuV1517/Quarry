@@ -8,6 +8,15 @@
       "symbol": "rectangle.split.2x1",
       "minimumVersion": "0.4.0",
       "legacyNames": ["TileMyMac"]
+    },
+    {
+      "id": "io.github.pzmuv1517.Magnetite",
+      "name": "Magnetite",
+      "summary": "Locks your Mac when your Android phone walks away.",
+      "repository": "PzmuV1517/Magnetite",
+      "symbol": "lock.iphone",
+      "minimumVersion": "0.1.0",
+      "android": { "package": "io.github.pzmuv1517.magnetite" }
     }
   ]
 }
