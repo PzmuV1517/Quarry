@@ -54,16 +54,24 @@ final class AndroidPhones {
         phones = found
     }
 
-    /// Downloads `release`'s APK and installs it on `phone`, keeping the app's data.
+    /// Downloads `release`'s APK and installs it on `phone`, keeping the app's data. Android won't
+    /// put an older version over a newer one, so a downgrade removes the app (and its data) first.
     func install(_ release: Release, package: String, on phone: Phone) async {
         guard let apk = release.apk else { return }
+        let downgrade = zip(release.version, phone.versions[package]).map { $0 < $1 } ?? false
         await installing(release.tag, package: package, on: phone) {
             let (download, _) = try await URLSession.shared.download(from: apk)
             let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).apk")
             try FileManager.default.moveItem(at: download, to: file)
             defer { try? FileManager.default.removeItem(at: file) }
+            if downgrade { _ = try await self.run(["-s", phone.id, "uninstall", package]) }
             try await self.adbInstall(file, on: phone)
         }
+    }
+
+    private func zip<A, B>(_ a: A?, _ b: B?) -> (A, B)? {
+        guard let a, let b else { return nil }
+        return (a, b)
     }
 
     private func installing(_ what: String, package: String, on phone: Phone, _ work: () async throws -> Void) async {

@@ -154,9 +154,15 @@ private struct PhonePanel: View {
     let tool: Tool
     let package: String
 
+    @State private var showsVersions = false
+    @State private var pendingDowngrade: Release?
+
     private var phones: AndroidPhones { library.phones }
-    /// The newest release with an Android app.
-    private var latest: Release? { tool.releases.first { $0.apk != nil && $0.version != nil } }
+    /// Releases with an Android app, newest first.
+    private var releases: [Release] { tool.releases.filter { $0.apk != nil && $0.version != nil } }
+    private var latest: Release? { releases.first }
+    /// The phone the versions list installs on: the first one ready.
+    private var target: AndroidPhones.Phone? { phones.phones.first { $0.state == .ready } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -181,10 +187,43 @@ private struct PhonePanel: View {
                 if phone != phones.phones.first { Divider() }
                 PhoneRow(phones: phones, phone: phone, package: package, latest: latest)
             }
+
+            if !releases.isEmpty {
+                Button { withAnimation(.easeOut(duration: 0.15)) { showsVersions.toggle() } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                            .rotationEffect(.degrees(showsVersions ? 90 : 0))
+                        Text("Android versions")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Brand.tertiary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            if showsVersions {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(releases) { release in
+                        if release != releases.first { Divider() }
+                        ReleaseRow(release: release, state: state(of: release), isBusy: target.map { phones.activity[$0.id] != nil } ?? true) {
+                            install(release)
+                        }
+                    }
+                }
+            }
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.white.opacity(0.03)))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Brand.hairline))
+        .alert("Install \(pendingDowngrade?.tag ?? "") on \(target?.model ?? "your phone")?",
+               isPresented: Binding(get: { pendingDowngrade != nil }, set: { if !$0 { pendingDowngrade = nil } }),
+               presenting: pendingDowngrade) { release in
+            Button("Remove and Install", role: .destructive) { install(release, confirmed: true) }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Android can't install an older version over a newer one, so the app is removed first. Its pairing goes with it: pair again afterwards.")
+        }
         .task {
             // Notices phones being plugged in while the Library is open.
             while !Task.isCancelled {
@@ -192,6 +231,26 @@ private struct PhonePanel: View {
                 try? await Task.sleep(for: .seconds(3))
             }
         }
+    }
+}
+
+extension PhonePanel {
+    /// How a release relates to what the plugged-in phone has.
+    func state(of release: Release) -> ReleaseRow.State {
+        guard let target else { return .unavailable(label: "No phone", reason: "Plug in your phone with USB debugging on.") }
+        guard let version = release.version else { return .unavailable(label: "No version", reason: "This release has no version number.") }
+        guard let installed = target.versions[package] else { return .available("Install") }
+        if version == installed { return .installed }
+        return .available(version < installed ? "Downgrade" : "Install")
+    }
+
+    func install(_ release: Release, confirmed: Bool = false) {
+        guard let target else { return }
+        if !confirmed, let version = release.version, let installed = target.versions[package], version < installed {
+            pendingDowngrade = release
+            return
+        }
+        Task { await phones.install(release, package: package, on: target) }
     }
 }
 
